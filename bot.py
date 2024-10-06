@@ -1,6 +1,7 @@
 import pywikibot
 import mwparserfromhell  # Για την ανάλυση του wikitext
 import csv
+import argparse  # Για την υποστήριξη command line arguments
 
 # Σύνδεση με την ελληνική Wikipedia
 site = pywikibot.Site('el', 'wikipedia')
@@ -99,5 +100,18 @@ def create_tsv(template_name):
     print(f"Το αρχείο TSV αποθηκεύτηκε ως '{tsv_filename}'.")
 
 if __name__ == "__main__":
-    template_name = input("Δώσε το όνομα του προτύπου: ")
+    # Χρήση της argparse για να λάβουμε το όνομα του προτύπου από την command line
+    parser = argparse.ArgumentParser(description="Εξαγωγή παραμέτρων προτύπου σε αρχείο TSV")
+    parser.add_argument('-t', '--template', type=str, help='Το όνομα του προτύπου που θέλεις να αναζητήσεις')
+    
+    # Ανάγνωση των arguments
+    args = parser.parse_args()
+
+    # Έλεγχος αν δόθηκε το όνομα του προτύπου μέσω command line
+    if args.template:
+        template_name = args.template
+    else:
+        # Ζήτηση του ονόματος του προτύπου από τον χρήστη αν δεν δόθηκε από την command line
+        template_name = input("Δώσε το όνομα του προτύπου: ")
+
     create_tsv(template_name)
