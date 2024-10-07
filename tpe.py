@@ -34,6 +34,7 @@ def get_template_data(template_name):
     # Για κάθε σελίδα που χρησιμοποιεί το πρότυπο
     for page in transclusions:
         try:
+            print(f"Έλεγχος σελίδας [[\033[93m{page.title()}\033[00m]]")
             # Λήψη κώδικα της σελίδας
             text = page.get()
 
@@ -55,7 +56,7 @@ def get_template_data(template_name):
                     template_data.append({'page_title': page.title(), 'params': params})
 
         except Exception as e:
-            print(f"Σφάλμα στη σελίδα {page.title()}: {e}")
+            print(f"\033[94m Σφάλμα στη σελίδα {page.title()}: {e}\033[00m")
 
     return template_data
 
@@ -97,7 +98,7 @@ def create_tsv(template_name):
                 row.append(value)
             writer.writerow(row)
 
-    print(f"Το αρχείο TSV αποθηκεύτηκε ως '{tsv_filename}'.")
+    print(f"\033[92mΤο αρχείο TSV αποθηκεύτηκε ως '{tsv_filename}'.\033[00m")
 
 if __name__ == "__main__":
     # Χρήση της argparse για να λάβουμε το όνομα του προτύπου από την command line
