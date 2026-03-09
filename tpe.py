@@ -1,4 +1,5 @@
 import pywikibot
+from pywikibot import pagegenerators as pg
 import mwparserfromhell  # Για την ανάλυση του wikitext
 import csv
 import argparse  # Για την υποστήριξη command line arguments
@@ -14,6 +15,17 @@ def clean_param_value(value):
     cleaned_value = value.replace('\n', ' ').replace('\t', ' ')
     # Αφαίρεση περιττών λευκών χαρακτήρων στις άκρες
     return cleaned_value.strip()
+
+def normalize_template_name(name):
+    """
+    Κανονικοποιεί το όνομα του προτύπου αφαιρώντας prefixes και μετατρέποντας κενά.
+    """
+    name = str(name).strip()
+    if name.lower().startswith("template:"):
+        name = name[9:]
+    elif name.lower().startswith("πρότυπο:"):
+        name = name[8:]
+    return name.replace('_', ' ').strip().lower()
 
 def get_template_data(template_name):
     """
@@ -31,8 +43,13 @@ def get_template_data(template_name):
     template = pywikibot.Page(site, 'Template:' + template_name)
     transclusions = template.getReferences(only_template_inclusion=True)
 
+    # Χρήση PreloadingGenerator για γρήγορη μαζική λήψη σελίδων (αποφυγή N+1 query problem)
+    preloaded_pages = pg.PreloadingGenerator(transclusions, groupsize=50)
+
+    target_norm_name = normalize_template_name(template_name)
+
     # Για κάθε σελίδα που χρησιμοποιεί το πρότυπο
-    for page in transclusions:
+    for page in preloaded_pages:
         try:
             print(f"Έλεγχος σελίδας [[\033[93m{page.title()}\033[00m]]")
             # Λήψη κώδικα της σελίδας
@@ -41,10 +58,10 @@ def get_template_data(template_name):
             # Ανάλυση κώδικα της σελίδας
             wikicode = mwparserfromhell.parse(text)
 
-            # Εύρεση του προτύπου στη σελίδα (μόνο στο ανώτερο επίπεδο)
-            templates = wikicode.filter_templates(recursive=False)
+            # Εύρεση του προτύπου στη σελίδα (συμπεριλαμβανομένων nested όπως μέσα σε <ref>)
+            templates = wikicode.filter_templates(recursive=True)
             for temp in templates:
-                if temp.name.matches(template_name):
+                if normalize_template_name(temp.name) == target_norm_name or temp.name.matches(template_name):
                     # Συλλογή παραμέτρων και τιμών
                     params = {}
                     for param in temp.params:
@@ -80,8 +97,9 @@ def create_tsv(template_name):
 
     all_params = sorted(all_params)  # Ταξινόμηση παραμέτρων
 
-    # Δημιουργία αρχείου TSV
-    tsv_filename = f"{template_name}_parameters.tsv"
+    # Δημιουργία αρχείου TSV (αντικατάσταση / σε _ για αποφυγή FileNotFoundError)
+    safe_template_name = template_name.replace('/', '_')
+    tsv_filename = f"{safe_template_name}_parameters.tsv"
     with open(tsv_filename, mode='w', newline='', encoding='utf-8') as file:
         writer = csv.writer(file, delimiter='\t')  # Χρήση tab ως διαχωριστή
 
